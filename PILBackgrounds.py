@@ -18,6 +18,13 @@ try:
 except ImportError:
     __isPILinstalled = False
 
+try:
+    import numpy as np
+    import cv2
+    __isOpenCVinstalled = True
+except ImportError:
+    __isOpenCVinstalled = False
+
 
 
 def generate(PMS_uuid, url, authtoken, resolution, blurRadius):
@@ -81,16 +88,25 @@ def generate(PMS_uuid, url, authtoken, resolution, blurRadius):
         bgWidth, bgHeight = background.size
         dprint(__name__,1 ,"Background size: {0}, {1}", bgWidth, bgHeight)
         dprint(__name__,1 , "aTV Height: {0}, {1}", width, height)
-        
+
         if bgHeight != height:
             background = background.resize((width, height), Image.ANTIALIAS)
             dprint(__name__,1 , "Resizing background")
         
         if blurRadius != 0:
-            dprint(__name__,1 , "Blurring Lower Region")
-            imgBlur = background.crop(blurRegion)
-            imgBlur = imgBlur.filter(ImageFilter.GaussianBlur(blurRadius))
-            background.paste(imgBlur, blurRegion)
+            if isOpenCVinstalled():
+                dprint(__name__,1 ,"Blurring Lower Region with OpenCV")
+                imgBlur = background.crop(blurRegion)
+                im = np.asarray(imgBlur)
+                im = cv2.blur(im, (blurRadius, blurRadius))
+                im = cv2.blur(im, (blurRadius, blurRadius))
+                imgBlur = Image.fromarray(im)
+                background.paste(imgBlur, blurRegion)
+            else:
+                dprint(__name__,1 , "Blurring Lower Region with PIL/Pillow")
+                imgBlur = background.crop(blurRegion)
+                imgBlur = imgBlur.filter(ImageFilter.GaussianBlur(blurRadius))
+                background.paste(imgBlur, blurRegion)
             
         background.paste(layer, ( 0, 0), layer)
         
@@ -111,9 +127,13 @@ def isPILinstalled():
     return __isPILinstalled
 
 
+def isOpenCVinstalled():
+    return __isOpenCVinstalled
+
+
 
 if __name__=="__main__":
     url = "http://thetvdb.com/banners/fanart/original/95451-23.jpg"
-    res = generate('uuid', url, 'authtoken', '1080')
-    res = generate('uuid', url, 'authtoken', '720')
+    res = generate('uuid', url, 'authtoken', '1080', '45')
+    res = generate('uuid', url, 'authtoken', '720', '45')
     dprint(__name__, 0, "Background: {0}", res)
